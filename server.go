@@ -173,7 +173,7 @@ func printClientConnInfo() {
 
 	for _, a := range addrs {
 		if a.String() != "0.0.0.0" {
-			fmt.Println("http://" + a.String() + ":8000/\n")
+			fmt.Println("http://" + a.String() + ":8000/chat.html\n")
 		}
 	}
 }
