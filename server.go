@@ -1,27 +1,30 @@
 package main
 
 import (
-	"./websocket" //gorilla websocket implementation
+	"github.com/gorilla/websocket"
 	"fmt"
 	"net"
 	"net/http"
 	"time"
 	"sync"
+	"html"
+	"strconv"
 )
 
 //############ CHATROOM TYPE AND METHODS
 
 type ChatRoom struct {
-	clients map[string]Client
+	clients map[int]Client
 	clientsMtx sync.Mutex
 	queue   chan string
+	curId   int
 }
 
 //initializing the chatroom
 func (cr *ChatRoom) Init() {
 	// fmt.Println("Chatroom init")
 	cr.queue = make(chan string, 5)
-	cr.clients = make(map[string]Client)
+	cr.clients = make(map[int]Client)
 
 	//the "heartbeat" for broadcasting messages
 	go func() {
@@ -34,30 +37,30 @@ func (cr *ChatRoom) Init() {
 
 //registering a new client
 //returns pointer to a Client, or Nil, if the name is already taken
-func (cr *ChatRoom) Join(name string, conn *websocket.Conn) *Client {
+func (cr *ChatRoom) Join(conn *websocket.Conn) *Client {
 	defer cr.clientsMtx.Unlock();
 
 	cr.clientsMtx.Lock(); //preventing simultaneous access to the `clients` map
-	if _, exists := cr.clients[name]; exists {
-		return nil
-	}
+	cr.curId = cr.curId + 1
+	id := cr.curId
 	client := Client{
-		name:      name,
+	        id:        id,
 		conn:      conn,
 		belongsTo: cr,
 	}
-	cr.clients[name] = client
+	cr.clients[id] = client
 	 
-	cr.AddMsg("<B>" + name + "</B> has joined the chat.")
+	cr.AddMsg("<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>anon" + "</strong> has joined the chat. (" + 
+	strconv.Itoa(len(cr.clients)) + " anons in the chat)</div>")
 	return &client
 }
 
 //leaving the chatroom
-func (cr *ChatRoom) Leave(name string) {
+func (cr *ChatRoom) Leave(cl *Client) {
 	cr.clientsMtx.Lock(); //preventing simultaneous access to the `clients` map
-	delete(cr.clients, name)
+	delete(cr.clients, cl.id)
 	cr.clientsMtx.Unlock(); 
-	cr.AddMsg("<B>" + name + "</B> has left the chat.")
+	cr.AddMsg("<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>anon" + "</strong> has left the chat.</div>")
 }
 
 //adding message to queue
@@ -72,7 +75,7 @@ infLoop:
 	for {
 		select {
 		case m := <-cr.queue:
-			msgBlock += m + "<BR>"
+			msgBlock += m
 		default:
 			break infLoop
 		}
@@ -87,19 +90,21 @@ infLoop:
 //################CLIENT TYPE AND METHODS
 
 type Client struct {
-	name      string
+	id        int
 	conn      *websocket.Conn
 	belongsTo *ChatRoom
 }
 
 //Client has a new message to broadcast
 func (cl *Client) NewMsg(msg string) {
-	cl.belongsTo.AddMsg("<B>" + cl.name + ":</B> " + msg)
+	if len(msg) > 0 {
+		cl.belongsTo.AddMsg("<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>anon" + ":</strong> " + html.EscapeString(msg) + "</div>")
+	}
 }
 
 //Exiting out
 func (cl *Client) Exit() {
-	cl.belongsTo.Leave(cl.name)
+	cl.belongsTo.Leave(cl)
 }
 
 //Sending message block to the client
@@ -124,6 +129,7 @@ var upgrader = websocket.Upgrader{
 
 //this is also the handler for joining to the chat
 func wsHandler(w http.ResponseWriter, r *http.Request) {
+	oldMsg := ""
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 
@@ -132,9 +138,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		//first message has to be the name
-		_, msg, err := conn.ReadMessage()
-		client := chat.Join(string(msg), conn)
+		client := chat.Join(  conn)
 		if client == nil || err != nil {
 			conn.Close() //closing connection to indicate failed Join
 			return
@@ -147,11 +151,15 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				client.Exit()
 				return
 			}
-			client.NewMsg(string(msg))
+			if (string(msg) != oldMsg){
+				client.NewMsg(string(msg))
+			}
+			oldMsg = string(msg)
 		}
 
 	}()
 }
+
 
 //Printing out the various ways the server can be reached by the clients
 func printClientConnInfo() {
@@ -177,5 +185,7 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/", staticFiles)
 	chat.Init()
-	http.ListenAndServe(":8000", nil)
+	//err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
+	err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
+	fmt.Println(err)
 }
