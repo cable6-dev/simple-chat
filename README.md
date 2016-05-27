@@ -11,6 +11,7 @@ The server is basically a webserver which serves the files necessary to run the 
 
 ## Usage
 
+- Download the dependencies (go get github.com/gorilla/websocket)
 - Download / clone the project
 - run the server: `go run server.go`
 - connect to the server from any computer in your local network: `http://_server_ip_or_name_:8000`
