@@ -18,8 +18,9 @@ The server is basically a webserver which serves the files necessary to run the 
 - connect to the server from any computer in your local network: `http://_server_ip_or_name_:8000/chat.html`
 
 ### Production
-- Upload server.go and statics files to the production server
+- Dowload the dependencise on the production server `go get github.com/gorilla/websocket`
+- Upload server.go and statics files to the production server (statics files can be on a different webserver)
 - Include chat.html somewhere in your website (index.html is an exemple for a webserver that support PHP)
-- Make sure that jquery is avaiable at yourwebsite.com/js/jquery.min.js
+- Make sure that jquery is available at yourwebsite.com/js/jquery.min.js
 
 That's it! 
