@@ -1,0 +1,18 @@
+
+#messages {
+    border: 1px solid #666;
+    height: 300px;
+    width: 50%;
+    overflow: auto;
+}
+
+#msg {
+    width: 50%;
+    height: 3em;
+}
+
+#error {
+    color: #f00;
+    padding: 5px;
+    font-weight: bold;
+}
