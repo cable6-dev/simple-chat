@@ -49,9 +49,9 @@ func (cr *ChatRoom) Join(conn *websocket.Conn) *Client {
 		belongsTo: cr,
 	}
 	cr.clients[id] = client
-	 
+	
 	cr.AddMsg(" has joined the chat. (" + 
-		     strconv.Itoa(len(cr.clients)) + " anons in the chat)", true)
+		strconv.Itoa(len(cr.clients)) + " anons in the chat)", true)
 	return &client
 }
 
@@ -60,25 +60,25 @@ func (cr *ChatRoom) Leave(cl *Client) {
 	cr.clientsMtx.Lock(); //preventing simultaneous access to the `clients` map
 	delete(cr.clients, cl.id)
 	cr.clientsMtx.Unlock(); 
-    cr.AddMsg(" has left the chat.", true)
+	cr.AddMsg(" has left the chat.", true)
 }
 
 //formating a message
 func FormatMsg(msg string, sys bool) string {
-    format := "<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>%s</strong><span>%s</span></div>"
+	format := "<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>%s</strong><span>%s</span></div>"
 
-    if (sys) { //If the message is a system message (join, leave, etc.)
-	format = fmt.Sprintf(format, "anon", "%s")
-    } else {
-	format = fmt.Sprintf(format, "anon:", "%s")
-    }
-    
-    return fmt.Sprintf(format, msg)
+	if (sys) { //If the message is a system message (join, leave, etc.)
+		format = fmt.Sprintf(format, "anon", "%s")
+	} else {
+		format = fmt.Sprintf(format, "anon:", "%s")
+	}
+	
+	return fmt.Sprintf(format, msg)
 }
 
 //formating and adding message to queue
 func (cr *ChatRoom) AddMsg(msg string, sys bool) {
-    cr.queue <- FormatMsg(msg, sys)
+	cr.queue <- FormatMsg(msg, sys)
 }
 
 //broadcasting all the messages in the queue in one block
@@ -111,7 +111,7 @@ type Client struct {
 //Client has a new message to broadcast
 func (cl *Client) NewMsg(msg string) {
 	if len(msg) > 0 {
-	    cl.belongsTo.AddMsg(html.EscapeString(msg), false)
+		cl.belongsTo.AddMsg(html.EscapeString(msg), false)
 	}
 }
 
