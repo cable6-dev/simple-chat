@@ -9,18 +9,14 @@ function timeConverter(UNIX_timestamp){
     return time;
 }
 
-function setupChat(evt) {
-    console.log("hello");
-    $("INPUT").val("");
-    $("#name").keypress(function(evt){
-        if (evt.originalEvent.keyCode==13) {
-            $("#join").trigger("click");
-        }
-    });
+function sendMessage() {
+    chat.send(document.getElementById("msg").value);
+    document.getElementById("msg").value = "";
+}
 
-    //handling the start of the chat
-    $("#join").click(function(){
-        $("#error").html("");
+function setupChat(evt) {
+    document.getElementById("join").addEventListener("click", function(){
+        document.getElementById("error").innerHTML = "";
         console.log("join started");
 
         // Find the protocol to be used
@@ -31,40 +27,40 @@ function setupChat(evt) {
         chat = new WebSocket(url);
 
         chat.onopen = function(evt) {
-            $("#phase1").animate({opacity:0},500,"linear",function(){
-                $("#phase1").css({display:"none"});
-                $("#phase2").css({opacity:1});
-                $("#msg").focus();
-            });
+            document.getElementById("phase1").style.display = "none";
+            document.getElementById("phase2").style.opacity = 1;
+            document.getElementById("msg").focus();
         };
         chat.onerror = function(evt) {
             console.log("Websocket Error:",evt);
         };
         chat.onclose = function(evt) {
-            console.log("chat closing")
-                $("#phase1").stop().css({display:"block"}).animate({opacity:1},500);
-                $("#phase2").stop().animate({opacity:0});
-                $("#error").html("That name was already used!");
+            console.log("chat closing");
         };
         chat.onmessage = function(evt) {
-            $("#messages").append(evt.data).scrollTop(9e6);
-            var time = $("#messages").children().last().attr("data-time");
-            $("#messages").children().last().prepend("<span>" + timeConverter( time ) + "</span>");
+            // Create a node to create a dom containing the messages
+            var tmpdiv = document.createElement("div");
+            tmpdiv.innerHTML = evt.data;
+            while (tmpdiv.children.length > 0) {
+                var message = tmpdiv.children[0];
+                var timeSpan = document.createElement("span");
+                timeSpan.innerHTML = timeConverter(message.dataset.time);
+                message.insertBefore(timeSpan, message.firstChild);
+                document.getElementById("messages").appendChild(message);
+            }
+            document.getElementById("messages").scrollTo(0, 9e6);
         };
     });
 
-    $("#msg").keypress(function(evt){
-        if(evt.originalEvent.keyCode == 13 && !evt.originalEvent.shiftKey){
-            $("#send").trigger("click");
+    document.getElementById("msg").addEventListener("keydown", function(evt){
+        if (evt.keyCode == 13 && !evt.shiftKey) {
+            sendMessage();
             evt.preventDefault();
         }
     });
 
-    $("#send").click(function(){
-        chat.send($("#msg").val());
-        $("#msg").val("");
-    });
-};
+    document.getElementById("send").addEventListener("click", sendMessage);
+}
 
 addEventListener("load", function (evt) {
     setupChat(evt);
