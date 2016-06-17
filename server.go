@@ -8,12 +8,15 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"regexp"
 	"sync"
 	"time"
 	"github.com/gorilla/websocket"
 )
 
-const filesPerMessage int = 2; // remember to update the corresponding variable in chat.js
+// if you edit these, remember to update the corresponding variables in chat.js
+const filesPerMessage int = 2;
+const acceptedFiletypes string = "^data:image/(png|gif|jpeg);base64,";
 
 //############ JSONMESSAGE TYPE
 type JSONMessage struct {
@@ -59,7 +62,7 @@ func (cr *ChatRoom) Join(conn *websocket.Conn) *Client {
 		belongsTo: cr,
 	}
 	cr.clients[id] = client
-	
+
 	cr.AddMsg(" has joined the chat. (" + 
 		strconv.Itoa(len(cr.clients)) + " anons in the chat)", nil, true)
 	return &client
@@ -84,13 +87,17 @@ func FormatMsg(msg string, pictures []string, sys bool) string {
 	if (!sys) {
 		str.WriteString(":");
 	}
-	str.WriteString("</strong>")
+	str.WriteString("</strong>");
 
 	str.WriteString("<span>");
 
 	// Add pictures, if needed (using str.WriteString because it's O(n))
 	if (pictures != nil) {
 		for i := 0; i < len(pictures) && i < filesPerMessage; i++ {
+			matched, err := regexp.MatchString(acceptedFiletypes, pictures[i]);
+			if (!matched || err != nil) {
+				continue ;
+			}
 			str.WriteString("<img src='");
 			str.WriteString(pictures[i]);
 			str.WriteString("'>");
@@ -231,7 +238,7 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/", staticFiles)
 	chat.Init()
-	// err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
-	err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
+	err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
+	// err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
 	fmt.Println(err)
 }

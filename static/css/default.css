@@ -26,21 +26,21 @@
     height: 4em;
 }
 
-#form .img-container {
+#form .img_container {
     width: 4em;
     height: 4em;
     overflow: hidden;
     display: inline-block;
 }
 
-.img-container img {
+.img_container img {
     min-width: 4em;
     min-height: 4em;
     max-height: 7em;
     max-width: 7em;
 }
 
-.img-container img:hover {
+.img_container img:hover {
     opacity: 0.5;
 }
 

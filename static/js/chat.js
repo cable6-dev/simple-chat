@@ -12,10 +12,11 @@ function timeConverter (UNIX_timestamp) {
 }
 
 function sendMessage () {
-    var pictures = Array.prototype.slice.call(document.querySelectorAll("#form img"), 0, filesPerMessage)
-        .map(function (pic) {
-            pic.parentNode.parentNode.removeChild(pic.parentNode);
-            return pic.src;
+    var pictures = Array.prototype.slice.call(document.querySelectorAll("#form .img_container"), 0, filesPerMessage)
+        .map(function (container) {
+            console.log(container);
+            container.parentNode.removeChild(container);
+            return container.firstChild.src;
         });
     chat.send(JSON.stringify({
         "txt": document.getElementById("msg").value,
@@ -26,7 +27,7 @@ function sendMessage () {
 
 function onFileRead (evt) {
     var div = document.createElement("div");
-    div.className = "img-container";
+    div.className = "img_container";
     var img = document.createElement("img");
     img.src = evt.target.result;
     img.addEventListener("click", evt => evt.target.parentNode.parentNode.removeChild(evt.target.parentNode));
