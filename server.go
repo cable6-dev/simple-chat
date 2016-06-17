@@ -1,15 +1,28 @@
 package main
 
 import (
-	"github.com/gorilla/websocket"
+	"bytes"
 	"fmt"
+	"html"
+	"encoding/json"
 	"net"
 	"net/http"
-	"time"
-	"sync"
-	"html"
 	"strconv"
+	"regexp"
+	"sync"
+	"time"
+	"github.com/gorilla/websocket"
 )
+
+// if you edit these, remember to update the corresponding variables in chat.js
+const filesPerMessage int = 2;
+const acceptedFiletypes string = "^data:image/(png|gif|jpeg);base64,";
+
+//############ JSONMESSAGE TYPE
+type JSONMessage struct {
+	Txt  string   `json:"txt"`
+	Pics []string `json:"pics"`
+}
 
 //############ CHATROOM TYPE AND METHODS
 
@@ -49,9 +62,9 @@ func (cr *ChatRoom) Join(conn *websocket.Conn) *Client {
 		belongsTo: cr,
 	}
 	cr.clients[id] = client
-	
+
 	cr.AddMsg(" has joined the chat. (" + 
-		strconv.Itoa(len(cr.clients)) + " anons in the chat)", true)
+		strconv.Itoa(len(cr.clients)) + " anons in the chat)", nil, true)
 	return &client
 }
 
@@ -60,25 +73,50 @@ func (cr *ChatRoom) Leave(cl *Client) {
 	cr.clientsMtx.Lock(); //preventing simultaneous access to the `clients` map
 	delete(cr.clients, cl.id)
 	cr.clientsMtx.Unlock(); 
-	cr.AddMsg(" has left the chat.", true)
+	cr.AddMsg(" has left the chat.", nil, true)
 }
 
 //formating a message
-func FormatMsg(msg string, sys bool) string {
-	format := "<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\"><strong>%s</strong><span>%s</span></div>"
+func FormatMsg(msg string, pictures []string, sys bool) string {
+	var str bytes.Buffer;
+	// Open a div with the date
+	str.WriteString("<div data-time=\""+ strconv.FormatInt(time.Now().Unix(), 10) +"\">");
 
-	if (sys) { //If the message is a system message (join, leave, etc.)
-		format = fmt.Sprintf(format, "anon", "%s")
-	} else {
-		format = fmt.Sprintf(format, "anon:", "%s")
+	// Add the pseudonym
+	str.WriteString("<strong>anon");
+	if (!sys) {
+		str.WriteString(":");
 	}
-	
-	return fmt.Sprintf(format, msg)
+	str.WriteString("</strong>");
+
+	str.WriteString("<span>");
+
+	// Add pictures, if needed (using str.WriteString because it's O(n))
+	if (pictures != nil) {
+		for i := 0; i < len(pictures) && i < filesPerMessage; i++ {
+			matched, err := regexp.MatchString(acceptedFiletypes, pictures[i]);
+			if (!matched || err != nil) {
+				continue ;
+			}
+			str.WriteString("<img src='");
+			str.WriteString(pictures[i]);
+			str.WriteString("'>");
+		}
+	}
+
+	// Add the rest of the message
+	str.WriteString(msg);
+	str.WriteString("</span>");
+
+	// Close the div
+	str.WriteString("</div>");
+
+	return str.String();
 }
 
 //formating and adding message to queue
-func (cr *ChatRoom) AddMsg(msg string, sys bool) {
-	cr.queue <- FormatMsg(msg, sys)
+func (cr *ChatRoom) AddMsg(msg string, pictures []string, sys bool) {
+	cr.queue <- FormatMsg(msg, pictures, sys)
 }
 
 //broadcasting all the messages in the queue in one block
@@ -109,9 +147,11 @@ type Client struct {
 }
 
 //Client has a new message to broadcast
-func (cl *Client) NewMsg(msg string) {
-	if len(msg) > 0 {
-		cl.belongsTo.AddMsg(html.EscapeString(msg), false)
+func (cl *Client) NewMsg(msg []byte) {
+	JSONMsg := JSONMessage{}
+	json.Unmarshal(msg, &JSONMsg);
+	if len(JSONMsg.Txt) > 0 || len(JSONMsg.Pics) > 0 {
+		cl.belongsTo.AddMsg(html.EscapeString(JSONMsg.Txt), JSONMsg.Pics, false)
 	}
 }
 
@@ -165,7 +205,7 @@ func wsHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			if (string(msg) != oldMsg){
-				client.NewMsg(string(msg))
+				client.NewMsg(msg)
 			}
 			oldMsg = string(msg)
 		}
@@ -198,7 +238,7 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/", staticFiles)
 	chat.Init()
-	//err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
+	// err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
 	err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
 	fmt.Println(err)
 }
