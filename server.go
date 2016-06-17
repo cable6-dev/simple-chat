@@ -238,7 +238,7 @@ func main() {
 	http.HandleFunc("/ws", wsHandler)
 	http.HandleFunc("/", staticFiles)
 	chat.Init()
-	err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
-	// err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
+	// err := http.ListenAndServe(":8000", nil) //uncomment if you don't have a tls certificate
+	err := http.ListenAndServeTLS(":8000", "cert.pem", "key.pem", nil)
 	fmt.Println(err)
 }
